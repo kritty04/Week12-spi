@@ -1,4 +1,4 @@
-/* USER CODE BEGIN Header */
+ /* USER CODE BEGIN Header */
 /**
  ******************************************************************************
  * @file           : main.c
@@ -64,6 +64,7 @@ uint16_t F = 100 ;
 uint16_t Vmax=33;
 uint16_t Vmin=0;
 uint16_t Dutycle=50;
+uint32_t read=0;
 char TxDataBuffer[32] =
 { 0 };
 char RxDataBuffer[32] =
@@ -217,7 +218,7 @@ char temp6[]="Back";
 			switch(inputchar)
 			{
 			case 'a'://up
-				if(Vmax<33)
+				if(Vmax<41)
 				{
 				Vmax+=1;
 				}
@@ -347,27 +348,27 @@ char temp6[]="Back";
 			if (waveform==0)
 			{
 				slope=(Vmax-Vmin)/(float)(10000000/F);
-				dataOut=((slope*t)+Vmin)*4095/(33);
+				dataOut=((slope*t)+Vmin)*4095/(41);
 			}
 			else if (waveform==1)
 			{
 				slope=(Vmax-Vmin)/(float)(10000000/F);
-				dataOut=(-slope*t+Vmax)*4095/33;
+				dataOut=(-slope*t+Vmax)*4095/41;
 			}
 			else if (waveform==2)
 			{
 				sin1 = 2*3.141592*t/(float)(10000000/F);
-				dataOut=(((Vmax-Vmin)/2)*(sin(sin1))+(Vmax+Vmin)/2)*4095/33;
+				dataOut=(((Vmax-Vmin)/2)*(sin(sin1))+(Vmax+Vmin)/2)*4095/41;
 			}
 			else if (waveform==3)
 			{
 				if(t>=Dutycle*(10000000/F)/100)
 				{
-					dataOut=Vmin*4095/33;
+					dataOut=Vmin*4095/41;
 				}
 				else
 				{
-					dataOut=Vmax*4095/33;
+					dataOut=Vmax*4095/41;
 				}
 			}
 			}
