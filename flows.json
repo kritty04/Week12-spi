@@ -1,23 +1,191 @@
 [
     {
-        "id": "6cbf450c.6f4dfc",
-        "type": "acquisition out",
-        "z": "7c1a6e81.98cac",
-        "name": "myProbe_Out",
-        "probeconfig": "88c7d49.9841028",
-        "x": 740,
-        "y": 160,
-        "wires": []
+        "id": "8381c865.236028",
+        "type": "subflow",
+        "name": "Single value",
+        "info": "The 'single value' subflow allows to extract data from processing node.\r\n\r\n * Filter Data to extract only one variable after the \"processing node\" step .\r\n * Modify the message to fit with standard widgets such as gauges.\r\n * Limit the number of messages to a maximum of 10 msg per second.\r\n\r\n### **Input**\r\n\r\nThe subflow 'single value' takes in input the `msg.payload`\r\nfrom the processing output. All the messages sent by the processing node have the same structure.\r\n\r\n    \"payload\": {\r\n        \"groupname\": \"Snapshot2\",\r\n        \"variabledata\": [\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            }\r\n        ],\r\n        \"variablename\": \"int2\"\r\n      }\r\n    }\r\n\r\n### **Filter on selected variable**\r\nSeveral messages are sent by the processing node for each variable, so the first step of this 'single value' subflow is to filter and keep only messages related to the selected variable.\r\nThe 'filter variable' node will only keep messages with the right `variablename` key.\r\n\r\n### **Extract duplets table**\r\n\r\nThe received message is an Object containing {groupname, variabledata[array], variablename}.  \r\nThe array contains two variables :\r\n - `y` the value \r\n - `x` the time\r\n\r\nA single message contains multiple pairs of values extract at a regular time interval.\r\nThe time interval depends on the acquisition frequency.\r\nWith the 'change' node and the `set` property, the `msg.payload` is set to \r\n`msg.payload.variabledata`, only the data variable array is set into msg.payload.\r\n\r\n    \"payload\": {\r\n        \"variabledata\": [\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            },\r\n            {\r\n                \"y\": \"9\",\r\n                \"x\": \"1567509421459\"\r\n            }\r\n        ]\r\n    }\r\n\r\n### **Split duplets table**\r\n\r\nThe data variable array is split with a length of one in smaller objects by the 'split' node.\r\nEach new object contains two subvariables : `y` and `x`.\r\n\r\n    \"payload\": {\r\n        \"y\": \"9\",\r\n        \"x\": \"1567509421459\"\r\n    }\r\n\r\n\r\n### **Limit the number of messages**\r\n\r\nThe 'delay' node allows to limit the maximum number of message per second.\r\nIn the 'single value' subflow, one message is extracted per second.\r\n\r\n>_Be careful, a dashboard saturation risk exists if too many messages are received per second._\r\n\r\n### **Extract only y values**\r\n\r\nThe `msg.payload` is set to `msg.payload.y` with the `set` property. \r\nOnly `y` variable is set into msg.payload as single value.\r\n\r\n    \"payload\": { \r\n        \"y\": \"9\" \r\n    }\r\n\r\n### **Output** \r\n\r\nSome widgets such as the gauge and the text node are using the `msg.payload` property.  \r\nThe output node is linked to a gauge that allows to see the evolution \r\nof the `y` variable as a function of time.\r\n\r\n\r\n![subflow_gauge](images/subflow_gauge.png)\r\n\r\n### **Details**\r\n\r\nNote : The debug node allows to see clearly and easily the \r\nmessage at the node output.  \r\n\r\n\r\n> More details on : [Node-Red](https://nodered.org/docs/user-guide/editor/workspace/subflows)\r\n\r\n\r\n-------\r\n\r\n",
+        "category": "",
+        "in": [
+            {
+                "x": 40,
+                "y": 60,
+                "wires": [
+                    {
+                        "id": "3c5ffe0d.9063b2"
+                    }
+                ]
+            }
+        ],
+        "out": [
+            {
+                "x": 780,
+                "y": 140,
+                "wires": [
+                    {
+                        "id": "66397fd3.d8111",
+                        "port": 0
+                    }
+                ]
+            }
+        ],
+        "env": [
+            {
+                "name": "varfilter",
+                "type": "str",
+                "value": "",
+                "ui": {
+                    "icon": "font-awesome/fa-filter",
+                    "label": {
+                        "en-US": "Variable"
+                    },
+                    "type": "input",
+                    "opts": {
+                        "types": [
+                            "str"
+                        ]
+                    }
+                }
+            }
+        ],
+        "color": "#3CB4E6"
     },
     {
-        "id": "88c7d49.9841028",
-        "type": "probe",
-        "probeid": "0670FF525750877267051418",
-        "probename": "ST-Link v2-1B (...51418)",
-        "protocol": "SWD",
-        "frequency": "1.8 MHz - Default",
-        "probeproperty": "{\"SWD\":[\"4.6 MHz\",\"1.8 MHz - Default\",\"950 kHz\",\"400 kHz\",\"150 kHz\"],\"JTAG\":[\"18 MHz\",\"9 MHz\",\"4.5 MHz\",\"2.25 MHz\",\"1.12 MHz - Default\",\"560 kHz\",\"280 kHz\",\"140 kHz\"]}",
-        "probeversion": "ST Link firmware version V2.J37",
-        "connectionType": "p2p"
+        "id": "3c5ffe0d.9063b2",
+        "type": "switch",
+        "z": "8381c865.236028",
+        "name": "filter variable",
+        "property": "payload.variablename",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "varfilter",
+                "vt": "env"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 170,
+        "y": 60,
+        "wires": [
+            [
+                "4e5ba7a5.14dec8"
+            ]
+        ]
+    },
+    {
+        "id": "4e5ba7a5.14dec8",
+        "type": "change",
+        "z": "8381c865.236028",
+        "name": "keep only table of duplets",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.variabledata",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 430,
+        "y": 60,
+        "wires": [
+            [
+                "42bc6ed.5b20d9"
+            ]
+        ]
+    },
+    {
+        "id": "42bc6ed.5b20d9",
+        "type": "split",
+        "z": "8381c865.236028",
+        "name": "Split a table[1..n] of duplets in n msg of single duplet",
+        "splt": "\\n",
+        "spltType": "str",
+        "arraySplt": 1,
+        "arraySpltType": "len",
+        "stream": false,
+        "addname": "",
+        "x": 800,
+        "y": 60,
+        "wires": [
+            [
+                "8b8ddb84.6fb208"
+            ]
+        ]
+    },
+    {
+        "id": "8b8ddb84.6fb208",
+        "type": "delay",
+        "z": "8381c865.236028",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "10",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "x": 200,
+        "y": 140,
+        "wires": [
+            [
+                "66397fd3.d8111"
+            ]
+        ]
+    },
+    {
+        "id": "66397fd3.d8111",
+        "type": "change",
+        "z": "8381c865.236028",
+        "name": "keep only value and delete timestamp",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.y",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 490,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ec98d015.06133",
+        "type": "subflow:8381c865.236028",
+        "z": "7c1a6e81.98cac",
+        "name": "Vadc",
+        "env": [
+            {
+                "name": "varfilter",
+                "value": "ADCin",
+                "type": "str"
+            }
+        ],
+        "x": 420,
+        "y": 580,
+        "wires": [
+            [
+                "fcd4784c.d72c48"
+            ]
+        ]
     }
 ]
