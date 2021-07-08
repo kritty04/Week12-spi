@@ -218,7 +218,7 @@ char temp6[]="Back";
 			switch(inputchar)
 			{
 			case 'a'://up
-				if(Vmax<41)
+				if(Vmax<33)
 				{
 				Vmax+=1;
 				}
@@ -348,27 +348,27 @@ char temp6[]="Back";
 			if (waveform==0)
 			{
 				slope=(Vmax-Vmin)/(float)(10000000/F);
-				dataOut=((slope*t)+Vmin)*4095/(41);
+				dataOut=((slope*t)+Vmin)*4095/(33);
 			}
 			else if (waveform==1)
 			{
 				slope=(Vmax-Vmin)/(float)(10000000/F);
-				dataOut=(-slope*t+Vmax)*4095/41;
+				dataOut=(-slope*t+Vmax)*4095/33;
 			}
 			else if (waveform==2)
 			{
 				sin1 = 2*3.141592*t/(float)(10000000/F);
-				dataOut=(((Vmax-Vmin)/2)*(sin(sin1))+(Vmax+Vmin)/2)*4095/41;
+				dataOut=(((Vmax-Vmin)/2)*(sin(sin1))+(Vmax+Vmin)/2)*4095/33;
 			}
 			else if (waveform==3)
 			{
 				if(t>=Dutycle*(10000000/F)/100)
 				{
-					dataOut=Vmin*4095/41;
+					dataOut=Vmin*4095/33;
 				}
 				else
 				{
-					dataOut=Vmax*4095/41;
+					dataOut=Vmax*4095/33;
 				}
 			}
 			}
