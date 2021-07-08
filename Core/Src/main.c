@@ -22,6 +22,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 /* USER CODE END Includes */
 
@@ -53,8 +56,22 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint16_t ADCin = 0;
 uint64_t _micro = 0;
+uint64_t t = 0;
 uint16_t dataOut = 0;
-	uint8_t DACConfig = 0b0011;
+uint8_t DACConfig = 0b0011;
+uint8_t menu=1;
+uint16_t F = 100 ;
+uint16_t Vmax=33;
+uint16_t Vmin=0;
+uint16_t Dutycle=50;
+char TxDataBuffer[32] =
+{ 0 };
+char RxDataBuffer[32] =
+{ 0 };
+char data[32]={0};
+float slope=0;
+uint8_t waveform=0;
+double sin1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,6 +86,8 @@ static void MX_TIM11_Init(void);
 /* USER CODE BEGIN PFP */
 void MCP4922SetOutput(uint8_t Config, uint16_t DACOutput);
 uint64_t micros();
+//void UARTRecieveAndResponsePolling();
+int16_t UARTRecieveIT();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -84,6 +103,12 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 
+char temp[]="*********MENU*********\r\n\n a:SlopeUp Sawtooth Wave     s:SlopeDown Sawtooth Wave\r\n d:SinWave                   f:SquareWave\r\n g:adjustVmax                h:adjustVmin\r\n j:adjustF and Dutycycle\r\n";
+char temp2[]="*********MENU AdjustVmax*********\r\n\n a:Voltage Up 0.1 v\r\n s:Voltage Down 0.1 v \r\n b:Back\r\n";
+char temp3[]="*********MENU AdjustVmin*********\r\n\n a:Voltage Up 0.1 v\r\n s:Voltage Down 0.1 v \r\n b:Back\r\n";
+char temp4[]="Input incorrect\r\n";
+char temp5[]="*********MENU AdjustFrequency And Dutycycle*********\r\n a:Frequency Up 0.1 Hz\r\n s:Frequency Down 0.1 Hz \r\n d:Dutycycle up 1% \r\n f:Dutycycle Down 1%\r\n b:Back\r\n";
+char temp6[]="Back";
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -122,12 +147,232 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		/*Method 2 Interrupt Mode*/
+		HAL_UART_Receive_IT(&huart2,  (uint8_t*)RxDataBuffer, 32);
+
+		/*Method 2 W/ 1 Char Received*/
+		int16_t inputchar = UARTRecieveIT();
+		if(inputchar!=-1)
+		{
+			sprintf(TxDataBuffer, "ReceivedChar:[%c]\r\n", inputchar);
+			HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 1000);
+		}
+
+		switch(menu)
+		{
+		case 1:
+			HAL_UART_Transmit(&huart2, (uint8_t*)temp, strlen(temp),100);
+			menu=2;
+			break;
+		case 2:
+			switch(inputchar)
+			{
+			case -1:
+				break;
+			case 'a':///sawup
+				waveform=0;
+				sprintf(data, "Sawtooth Slope Up\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=1;
+				break;
+			case 's':///sawdown
+				waveform=1;
+				sprintf(data, "Sawtooth Slope Down\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=1;
+				break;
+
+			case 'd'://sin
+				waveform=2;
+				sprintf(data, "Sin Wave\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=1;
+				break;
+			case 'f'://pwm
+				sprintf(data, "Square Wave\r\n");
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=1;
+				waveform=3;
+				break;
+			case 'g'://vhig
+				menu=3;
+				break;
+			case 'h'://vlow
+				menu=5;
+				break;
+			case 'j'://F
+				menu=7;
+				break;
+			default :
+				menu=1;
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp4, strlen(temp4),100);
+				break;
+			}
+			break;
+		case 3://vhig menu
+			HAL_UART_Transmit(&huart2, (uint8_t*)temp2, strlen(temp2),100);
+			menu=4;
+			break;
+		case 4:
+			switch(inputchar)
+			{
+			case 'a'://up
+				if(Vmax<33)
+				{
+				Vmax+=1;
+				}
+				sprintf(data, "Vmax=%d.%d\r\n", Vmax/10,Vmax%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=3;
+				break;
+			case 's'://down
+				if(Vmax-1>Vmin)
+				{
+				Vmax-=1;
+				}
+				sprintf(data, "Vmax=%d.%d\r\n", Vmax/10,Vmax%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=3;
+				break;
+			case 'b'://back
+				menu=1;
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp6, strlen(temp6),100);
+				break;
+			case -1:
+				break;
+			default :
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp4, strlen(temp4),100);
+				menu=3;
+				break;
+			}
+			break;
+		case 5://vlow menu
+			menu=6;
+			HAL_UART_Transmit(&huart2, (uint8_t*)temp3, strlen(temp3),100);
+			break;
+		case 6:
+			switch(inputchar)
+			{
+			case 'a'://up
+				if(Vmin+1<Vmax)
+				{
+				Vmin+=1;
+				}
+				sprintf(data, "Vmin=%d.%d\r\n", Vmin/10,Vmin%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=5;
+				break;
+			case 's'://down
+				if(Vmin>0)
+				{
+				Vmin-=1;
+				}
+				sprintf(data, "Vmin=%d.%d\r\n", Vmin/10,Vmin%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=5;
+				break;
+			case 'b'://back
+				menu=1;
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp6, strlen(temp6),100);
+				break;
+			case -1:
+				break;
+			default :
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp4, strlen(temp4),100);
+				menu=5;
+				break;
+			}
+			break;
+		case 7://f menu
+			menu=8;
+			HAL_UART_Transmit(&huart2, (uint8_t*)temp5, strlen(temp5),100);
+			break;
+		case 8:
+			switch(inputchar)
+			{
+			case 'a'://up
+				F+=1;
+				sprintf(data, "Frequency=%d.%d\r\n", F/10,F%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=7;
+				break;
+			case 's'://down
+				if(F>0)
+				{
+				F-=1;
+				}
+				sprintf(data, "Frequency=%d.%d\r\n", F/10,F%10);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=7;
+				break;
+			case 'd':
+				if (Dutycle<100)
+				{
+				Dutycle +=1;
+				}
+				sprintf(data, "Dutycle=%d percent\r\n", Dutycle);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=7;
+				break;
+			case 'f':
+				if (Dutycle>0)
+				{
+				Dutycle -=1;
+				}
+				sprintf(data, "Dutycle=%d percent\r\n", Dutycle);
+				HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 100);
+				menu=7;
+				break;
+			case 'b'://back
+				menu=1;
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp6, strlen(temp6),100);
+				break;
+			case -1:
+				break;
+			default :
+				HAL_UART_Transmit(&huart2, (uint8_t*)temp4, strlen(temp4),100);
+				menu=7;
+				break;
+			}
+			break;
+		}
+
+
 		static uint64_t timestamp = 0;
 		if (micros() - timestamp > 100)
-		{
-			timestamp = micros();
-			dataOut++;
-			dataOut %= 4096;
+		{	timestamp = micros();
+			if(F>0)
+			{
+			t=timestamp%(10000000/F);
+			if (waveform==0)
+			{
+				slope=(Vmax-Vmin)/(float)(10000000/F);
+				dataOut=((slope*t)+Vmin)*4095/(33);
+			}
+			else if (waveform==1)
+			{
+				slope=(Vmax-Vmin)/(float)(10000000/F);
+				dataOut=(-slope*t+Vmax)*4095/33;
+			}
+			else if (waveform==2)
+			{
+				sin1 = 2*3.141592*t/(float)(10000000/F);
+				dataOut=(((Vmax-Vmin)/2)*(sin(sin1))+(Vmax+Vmin)/2)*4095/33;
+			}
+			else if (waveform==3)
+			{
+				if(t>=Dutycle*(10000000/F)/100)
+				{
+					dataOut=Vmin*4095/33;
+				}
+				else
+				{
+					dataOut=Vmax*4095/33;
+				}
+			}
+			}
+//			dataOut++;
+//			dataOut %= 4096;
 			if (hspi3.State == HAL_SPI_STATE_READY
 					&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin)
 							== GPIO_PIN_SET)
@@ -456,6 +701,24 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+int16_t UARTRecieveIT()
+{
+	static uint32_t dataPos =0;
+	int16_t data=-1;
+	if(huart2.RxXferSize - huart2.RxXferCount!=dataPos)
+	{
+		data=RxDataBuffer[dataPos];
+		dataPos= (dataPos+1)%huart2.RxXferSize;
+	}
+	return data;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+//	sprintf(TxDataBuffer, "Received:[%s]\r\n", RxDataBuffer);
+//	HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 1000);
+}
+
 void MCP4922SetOutput(uint8_t Config, uint16_t DACOutput)
 {
 	uint32_t OutputPacket = (DACOutput & 0x0fff) | ((Config & 0xf) << 12);
